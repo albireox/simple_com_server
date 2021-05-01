@@ -96,7 +96,7 @@ class TCPServer:
         self.server.close()
         self.wserial.close()
 
-    async def _client_connect_cb(
+    async def _client_connected_cb(
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
