@@ -74,18 +74,18 @@ class TCPServer:
 
         """
 
-        self.server = await asyncio.start_server(
-            self._client_connected_cb,
-            "localhost",
-            self.port,
-        )
-
         options = self._extra_options.copy()
         options.update(kwargs)
 
         self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
             url=self.com_path,
             **options,
+        )
+
+        self.server = await asyncio.start_server(
+            self._client_connected_cb,
+            "localhost",
+            self.port,
         )
 
         return self
@@ -103,16 +103,18 @@ class TCPServer:
     ):
         """Handles a connected client."""
 
-        while not reader.at_eof():
+        while True:
 
-            data = await reader.read()
+            data = await reader.read(1024)
+            if reader.at_eof() or writer.is_closing():
+                return
 
             async with self._lock:
                 try:
                     self.wserial.write(data)
                     await self.wserial.drain()
 
-                    reply = await asyncio.wait_for(self.rserial.read(), self.timeout)
+                    reply = await asyncio.wait_for(self.rserial.read(1024), self.timeout)
                     writer.write(reply)
                     await writer.drain()
                 except BaseException:
