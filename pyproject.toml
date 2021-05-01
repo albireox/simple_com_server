@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "simple_com_server"
+version = "0.1.0"
+description = "A multiplex TCP server that provides communication with a serial device."
+authors = ["José Sánchez-Gallego <gallegoj@uw.edu>"]
+license = "BSD-3-Clause"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pyserial = "^3.5"
+pyserial-asyncio = "^0.5"
+
+[tool.poetry.dev-dependencies]
+ipython = ">=7.11.0"
+flake8 = ">=3.7.9"
+isort = ">=4.3.21"
+ipdb = ">=0.12.3"
+black = ">=20.8b1"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+fast = true
+
+[tool.isort]
+profile = "black"
+sections = ["FUTURE", "STDLIB", "TYPING", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+default_section = "THIRDPARTY"
+known_first_party = "simple_com_server"
+known_typing = ["typing"]
+lines_after_imports = 2
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
