@@ -108,13 +108,12 @@ class TCPServer:
             data = await reader.read()
 
             async with self._lock:
-
-                self.wserial.write(data)
-                await self.wserial.drain()
-
                 try:
+                    self.wserial.write(data)
+                    await self.wserial.drain()
+
                     reply = await asyncio.wait_for(self.rserial.read(), self.timeout)
                     writer.write(reply)
                     await writer.drain()
-                except asyncio.TimeoutError:
+                except BaseException:
                     pass
