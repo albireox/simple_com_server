@@ -29,7 +29,9 @@ class TCPServer:
     Parameters
     ----------
     com_path
-        The path to the TTY device for the serial port.
+        The path to the TTY device for the serial port. Connection options for pyserial
+        can be passed as comma-separated values, for example
+        ``com_path=/dev/ttyS0,baudrate=9600,parity=N``.
     port
         The port on localhost on which to serve the TCP socket.
     timeout
@@ -40,7 +42,18 @@ class TCPServer:
 
     def __init__(self, com_path: str | pathlib.Path, port: int, timeout: float = 1):
 
-        self.com_path = com_path
+        if "," not in com_path:
+            self.com_path = com_path
+            self._extra_options = {}
+        else:
+            self.com_path, *other = com_path.split(",")
+            self._extra_options = {}
+            for o in other:
+                key, value = o.split("=")
+                if value in ["baudrate", "baudrate", "stopbits"]:
+                    value = int(value)
+                self._extra_options[key] = value
+
         self.port = port
         self.timeout = timeout
 
@@ -67,10 +80,15 @@ class TCPServer:
             self.port,
         )
 
+        options = self._extra_options.copy()
+        options.update(kwargs)
+
         self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
-            port=self.com_path,
-            **kwargs,
+            url=self.com_path,
+            **options,
         )
+
+        return self
 
     async def stop(self):
         """Closes the TCP server."""
