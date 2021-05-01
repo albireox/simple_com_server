@@ -114,7 +114,10 @@ class TCPServer:
                     self.wserial.write(data)
                     await self.wserial.drain()
 
-                    reply = await asyncio.wait_for(self.rserial.read(1024), self.timeout)
+                    reply = await asyncio.wait_for(
+                        self.rserial.read(1024),
+                        self.timeout,
+                    )
                     writer.write(reply)
                     await writer.drain()
                 except BaseException:
