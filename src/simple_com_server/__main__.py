@@ -19,14 +19,12 @@ from simple_com_server.server import TCPServer
     "--device",
     multiple=True,
     type=str,
-    required=True,
     help="Path to the serial device. Can be called multiple times for several devices.",
 )
 @click.option(
     "--port",
     multiple=True,
     type=int,
-    required=True,
     help="Port on which to serve. Can be called multiple times for several devices.",
 )
 @click.option(
@@ -36,8 +34,16 @@ from simple_com_server.server import TCPServer
     help="Time to wait for a reply from the serial device.",
 )
 @cli_coro()
-async def com_server(device, port, timeout):
+@click.pass_context
+async def com_server(ctx, device, port, timeout):
     """Start a TCP-to-COM server."""
+
+    # Do not require parameters to stop the daemon.
+    if ctx.command.name in ["stop", "status"]:
+        return
+
+    if len(port) == 0 or len(device) == 0:
+        raise click.UsageError("device and port are required options.", ctx)
 
     assert len(device) == len(port), "Number of devices must match number of ports."
     assert len(set(port)) == len(port), "Ports must be unique"
