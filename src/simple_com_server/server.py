@@ -105,7 +105,7 @@ class TCPServer:
 
         while True:
 
-            data = await reader.read(1024)
+            data = await reader.readline()
             if reader.at_eof() or writer.is_closing():
                 return
 
