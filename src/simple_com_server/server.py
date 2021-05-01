@@ -96,6 +96,16 @@ class TCPServer:
         self.server.close()
         self.wserial.close()
 
+    async def readall(self, reader, timeout=0.1):
+        """Reads the buffer until it's empty."""
+
+        reply = b""
+        while True:
+            try:
+                reply += await asyncio.wait_for(reader.read(1), timeout)
+            except asyncio.TimeoutError:
+                return reply
+
     async def _client_connected_cb(
         self,
         reader: asyncio.StreamReader,
@@ -105,8 +115,11 @@ class TCPServer:
 
         while True:
 
-            data = await reader.readline()
-            if reader.at_eof() or writer.is_closing():
+            try:
+                data = await reader.read(1024)
+                if reader.at_eof() or writer.is_closing():
+                    return
+            except ConnectionResetError:
                 return
 
             async with self._lock:
@@ -115,9 +128,10 @@ class TCPServer:
                     await self.wserial.drain()
 
                     reply = await asyncio.wait_for(
-                        self.rserial.read(1024),
+                        self.readall(self.rserial),
                         self.timeout,
                     )
+
                     writer.write(reply)
                     await writer.drain()
                 except BaseException:
