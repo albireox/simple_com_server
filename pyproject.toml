@@ -5,10 +5,15 @@ description = "A multiplex TCP server that provides communication with a serial 
 authors = ["José Sánchez-Gallego <gallegoj@uw.edu>"]
 license = "BSD-3-Clause"
 
+[tool.poetry.scripts]
+com-server = "simple_com_server.__main__:com_server"
+
 [tool.poetry.dependencies]
 python = "^3.9"
 pyserial = "^3.5"
 pyserial-asyncio = "^0.5"
+sdsstools = "^0.4.10"
+daemonocle = "^1.2.3"
 
 [tool.poetry.dev-dependencies]
 ipython = ">=7.11.0"
