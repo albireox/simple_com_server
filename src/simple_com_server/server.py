@@ -84,7 +84,7 @@ class TCPServer:
 
         self.server = await asyncio.start_server(
             self._client_connected_cb,
-            "localhost",
+            "0.0.0.0",
             self.port,
         )
 
