@@ -116,6 +116,8 @@ class TCPServer:
         while True:
 
             try:
+                if self.wserial.is_closing():
+                    return
                 data = await reader.read(1024)
                 if reader.at_eof() or writer.is_closing():
                     return
@@ -135,4 +137,5 @@ class TCPServer:
                     writer.write(reply)
                     await writer.drain()
                 except BaseException:
-                    pass
+                    self.wserial.close()
+                    return
