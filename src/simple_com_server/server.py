@@ -138,5 +138,6 @@ class TCPServer:
                     writer.write(reply)
                     await writer.drain()
                 except BaseException:
+                    writer.close()
                     self.wserial.close()
                     return
