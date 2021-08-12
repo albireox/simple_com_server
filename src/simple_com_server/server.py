@@ -117,6 +117,7 @@ class TCPServer:
 
             try:
                 if self.wserial.is_closing():
+                    writer.close()
                     return
                 data = await reader.read(1024)
                 if reader.at_eof():
