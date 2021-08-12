@@ -119,7 +119,8 @@ class TCPServer:
                 if self.wserial.is_closing():
                     return
                 data = await reader.read(1024)
-                if reader.at_eof() or writer.is_closing():
+                if reader.at_eof():
+                    writer.close()
                     return
             except ConnectionResetError:
                 return
