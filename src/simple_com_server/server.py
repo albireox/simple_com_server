@@ -96,6 +96,8 @@ class TCPServer:
         self.server.close()
         self.wserial.close()
 
+        await self.server
+
     async def readall(self, reader, timeout=0.1):
         """Reads the buffer until it's empty."""
 
@@ -120,10 +122,11 @@ class TCPServer:
                     writer.close()
                     return
                 data = await reader.read(1024)
-                if reader.at_eof():
+                if data == b"" or reader.at_eof():
                     writer.close()
                     return
-            except ConnectionResetError:
+            except BaseException:
+                writer.close()
                 return
 
             async with self._lock:
