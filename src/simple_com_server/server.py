@@ -103,7 +103,10 @@ class TCPServer:
 
         reply = b""
         try:
-            reply = await self.readall(self.rserial, timeout or self.timeout)
+            # reply = await self.readall(self.rserial, timeout or self.timeout)
+            reply = await asyncio.wait_for(
+                self.wreader.read(1024), timeout or self.timeout
+            )
         except BaseException:
             pass
         finally:
