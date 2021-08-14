@@ -61,26 +61,8 @@ class TCPServer:
 
         self.server: asyncio.AbstractServer = None
 
-        self.rserial: asyncio.StreamReader = None
-        self.wserial: asyncio.StreamWriter = None
-
-    async def start(self: T, **kwargs) -> T:
-        """Starts the connection to the serial device and the TCP server.
-
-        Parameters
-        ----------
-        kwargs
-            Arguments to be passed to ``pyserial`` when opening the serial connection.
-
-        """
-
-        options = self._extra_options.copy()
-        options.update(kwargs)
-
-        self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
-            url=self.com_path,
-            **options,
-        )
+    async def start(self: T) -> T:
+        """Starts the TCP server."""
 
         self.server = await asyncio.start_server(
             self._client_connected_cb,
@@ -94,11 +76,9 @@ class TCPServer:
         """Closes the TCP server."""
 
         self.server.close()
-        self.wserial.close()
-
         await self.server
 
-    async def readall(self, reader, timeout=0.1):
+    async def readall(self, reader, timeout=0.1) -> bytes:
         """Reads the buffer until it's empty."""
 
         reply = b""
@@ -107,6 +87,30 @@ class TCPServer:
                 reply += await asyncio.wait_for(reader.read(1), timeout)
             except asyncio.TimeoutError:
                 return reply
+
+    async def send_to_serial(self, data: bytes, timeout=None) -> bytes:
+        """Sends data to the serial device and waits for a reply."""
+
+        options = self._extra_options.copy()
+
+        self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
+            url=self.com_path,
+            **options,
+        )
+
+        self.wserial.write(data)
+        await self.wserial.drain()
+
+        reply = b""
+        try:
+            reply = await self.readall(self.rserial, timeout or self.timeout)
+        except BaseException:
+            pass
+        finally:
+            self.wserial.close()
+            await self.wserial.wait_closed()
+
+        return reply
 
     async def _client_connected_cb(
         self,
@@ -117,31 +121,16 @@ class TCPServer:
 
         while True:
 
-            try:
-                if self.wserial.is_closing():
-                    writer.close()
-                    return
-                data = await reader.read(1024)
-                if data == b"" or reader.at_eof():
-                    writer.close()
-                    return
-            except BaseException:
+            data = await reader.read(1024)
+            if data == b"" or reader.at_eof():
                 writer.close()
                 return
 
             async with self._lock:
                 try:
-                    self.wserial.write(data)
-                    await self.wserial.drain()
-
-                    reply = await asyncio.wait_for(
-                        self.readall(self.rserial),
-                        self.timeout,
-                    )
-
-                    writer.write(reply)
-                    await writer.drain()
+                    reply = self.send_to_serial(data)
+                    if reply != b"":
+                        writer.write(reply)
+                        await writer.drain()
                 except BaseException:
-                    writer.close()
-                    self.wserial.close()
-                    return
+                    continue
