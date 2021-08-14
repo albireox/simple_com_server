@@ -129,7 +129,7 @@ class TCPServer:
 
             async with self._lock:
                 try:
-                    reply = self.send_to_serial(data)
+                    reply = await self.send_to_serial(data)
                     if reply != b"":
                         print("sending", reply.decode())
                         writer.write(reply)
