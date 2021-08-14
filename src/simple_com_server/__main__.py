@@ -60,3 +60,7 @@ async def com_server(ctx, device, port, timeout):
     )
 
     await servers[0].server.serve_forever()
+
+
+if __name__ == "__main__":
+    com_server()
