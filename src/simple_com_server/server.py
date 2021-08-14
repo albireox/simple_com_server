@@ -40,7 +40,7 @@ class TCPServer:
 
     """
 
-    def __init__(self, com_path: str | pathlib.Path, port: int, timeout: float = 1):
+    def __init__(self, com_path: str | pathlib.Path, port: int, timeout: float = 0.1):
 
         if "," not in com_path:
             self.com_path = com_path
@@ -103,10 +103,7 @@ class TCPServer:
 
         reply = b""
         try:
-            # reply = await self.readall(self.rserial, timeout or self.timeout)
-            reply = await asyncio.wait_for(
-                self.wreader.read(1024), timeout or self.timeout
-            )
+            reply = await self.readall(self.rserial, timeout or self.timeout)
         except BaseException:
             pass
         finally:
@@ -123,20 +120,17 @@ class TCPServer:
         """Handles a connected client."""
 
         while True:
-            print("connected")
+
             data = await reader.read(1024)
             if data == b"" or reader.at_eof():
                 writer.close()
-                print("disconnect")
                 return
 
             async with self._lock:
                 try:
                     reply = await self.send_to_serial(data)
                     if reply != b"":
-                        print("sending", reply.decode())
                         writer.write(reply)
                         await writer.drain()
                 except BaseException:
-                    print("failure")
                     continue
