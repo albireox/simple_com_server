@@ -120,17 +120,20 @@ class TCPServer:
         """Handles a connected client."""
 
         while True:
-
+            print("connected")
             data = await reader.read(1024)
             if data == b"" or reader.at_eof():
                 writer.close()
+                print("disconnect")
                 return
 
             async with self._lock:
                 try:
                     reply = self.send_to_serial(data)
                     if reply != b"":
+                        print("sending", reply.decode())
                         writer.write(reply)
                         await writer.drain()
                 except BaseException:
+                    print("failure")
                     continue
