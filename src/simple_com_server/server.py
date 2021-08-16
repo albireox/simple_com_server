@@ -121,16 +121,20 @@ class TCPServer:
 
         while True:
 
-            data = await reader.read(1024)
-            if data == b"" or reader.at_eof():
-                writer.close()
-                return
+            try:
+                data = await reader.read(1024)
+                if data == b"" or reader.at_eof():
+                    writer.close()
+                    return
 
-            async with self._lock:
-                try:
-                    reply = await self.send_to_serial(data)
-                    if reply != b"":
-                        writer.write(reply)
-                        await writer.drain()
-                except BaseException:
-                    continue
+                async with self._lock:
+                    try:
+                        reply = await self.send_to_serial(data)
+                        if reply != b"":
+                            writer.write(reply)
+                            await writer.drain()
+                    except BaseException:
+                        continue
+            except BaseException as err:
+                print(err)
+                self._lock.release()
