@@ -9,7 +9,9 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import pathlib
+import warnings
 
 from typing import TypeVar
 
@@ -40,7 +42,13 @@ class TCPServer:
 
     """
 
-    def __init__(self, com_path: str | pathlib.Path, port: int, timeout: float = 0.1):
+    def __init__(
+        self,
+        com_path: str | pathlib.Path,
+        port: int,
+        timeout: float = 0.1,
+        delimiter: str | None = None,
+    ):
 
         if "," not in com_path:
             self.com_path = com_path
@@ -56,6 +64,7 @@ class TCPServer:
 
         self.port = port
         self.timeout = timeout
+        self.delimiter = delimiter
 
         self._lock = asyncio.Lock()
 
@@ -81,14 +90,21 @@ class TCPServer:
     async def readall(self, reader, timeout=0.1) -> bytes:
         """Reads the buffer until it's empty."""
 
-        reply = b""
-        while True:
+        if self.delimiter is not None and self.delimiter != "":
             try:
-                reply += await asyncio.wait_for(reader.readexactly(1), timeout)
-            except asyncio.TimeoutError:
-                return reply
+                return await reader.readuntil(html.escape(self.delimiter).encode())
             except asyncio.IncompleteReadError:
                 return b""
+
+        else:
+            reply = b""
+            while True:
+                try:
+                    reply += await asyncio.wait_for(reader.readexactly(1), timeout)
+                except asyncio.TimeoutError:
+                    return reply
+                except asyncio.IncompleteReadError:
+                    return b""
 
     async def send_to_serial(self, data: bytes, timeout=None) -> bytes:
         """Sends data to the serial device and waits for a reply."""
@@ -137,7 +153,7 @@ class TCPServer:
                     except BaseException:
                         continue
             except BaseException as err:
-                print(err)
+                warnings.warn(f"Error found: {err}")
                 try:
                     writer.close()
                 except BaseException:

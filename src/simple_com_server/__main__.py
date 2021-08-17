@@ -28,6 +28,12 @@ from simple_com_server.server import TCPServer
     help="Port on which to serve. Can be called multiple times for several devices.",
 )
 @click.option(
+    "--delimiter",
+    multiple=True,
+    type=str,
+    help="String delimiter for messages received from the serial device.",
+)
+@click.option(
     "--timeout",
     type=float,
     default=1.0,
@@ -35,7 +41,7 @@ from simple_com_server.server import TCPServer
 )
 @cli_coro()
 @click.pass_context
-async def com_server(ctx, device, port, timeout):
+async def com_server(ctx, device=(), port=(), timeout=1.0, delimiter=()):
     """Start a TCP-to-COM server."""
 
     # Do not require parameters to stop the daemon.
@@ -54,6 +60,7 @@ async def com_server(ctx, device, port, timeout):
                 str(device[ii]),
                 port[ii],
                 timeout=timeout,
+                delimiter=delimiter[ii] if len(delimiter) > 0 else None,
             ).start()
             for ii in range(len(port))
         ]
