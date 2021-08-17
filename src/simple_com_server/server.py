@@ -84,7 +84,7 @@ class TCPServer:
         reply = b""
         while True:
             try:
-                reply += await asyncio.wait_for(reader.read(1), timeout)
+                reply += await asyncio.wait_for(reader.read(8), timeout)
             except asyncio.TimeoutError:
                 return reply
 
@@ -108,7 +108,6 @@ class TCPServer:
             pass
         finally:
             self.wserial.close()
-            await self.wserial.wait_closed()
 
         return reply
 
@@ -137,4 +136,8 @@ class TCPServer:
                         continue
             except BaseException as err:
                 print(err)
+                try:
+                    writer.close()
+                except BaseException:
+                    pass
                 self._lock.release()
