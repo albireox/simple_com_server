@@ -84,7 +84,7 @@ class TCPServer:
         reply = b""
         while True:
             try:
-                reply += await asyncio.wait_for(reader.read(8), timeout)
+                reply += await asyncio.wait_for(reader.readexactly(1), timeout)
             except asyncio.TimeoutError:
                 return reply
             except asyncio.IncompleteReadError:
