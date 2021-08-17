@@ -87,6 +87,8 @@ class TCPServer:
                 reply += await asyncio.wait_for(reader.read(8), timeout)
             except asyncio.TimeoutError:
                 return reply
+            except asyncio.IncompleteReadError:
+                return b""
 
     async def send_to_serial(self, data: bytes, timeout=None) -> bytes:
         """Sends data to the serial device and waits for a reply."""
