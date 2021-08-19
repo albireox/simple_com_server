@@ -16,6 +16,11 @@ import warnings
 from typing import TypeVar
 
 import serial_asyncio
+from sdsstools import get_logger
+
+
+log = get_logger("simple-com")
+log.start_file_logger("/home/lvm/simple-com.log")
 
 
 T = TypeVar("T", bound="TCPServer")
@@ -94,6 +99,10 @@ class TCPServer:
             try:
                 return await reader.readuntil(html.escape(self.delimiter).encode())
             except asyncio.IncompleteReadError:
+                log.error("IncompleteReadError while reading serial with delimiter.")
+                return b""
+            except BaseException as err:
+                log.error(f"Unknown error while reading serial: {err}")
                 return b""
 
         else:
@@ -102,8 +111,13 @@ class TCPServer:
                 try:
                     reply += await asyncio.wait_for(reader.readexactly(1), timeout)
                 except asyncio.TimeoutError:
+                    log.error("TiemoutError while reading serial.")
                     return reply
                 except asyncio.IncompleteReadError:
+                    log.error("IncompleteReadError while reading serial.")
+                    return b""
+                except BaseException as err:
+                    log.error(f"Unknown error while reading serial: {err}")
                     return b""
 
     async def send_to_serial(self, data: bytes, timeout=None) -> bytes:
@@ -115,16 +129,21 @@ class TCPServer:
             url=self.com_path,
             **options,
         )
+        log.info(f"Serial {self.com_path} open.")
 
         self.wserial.write(data)
         await self.wserial.drain()
+        log.info(f"Serial {self.com_path}: sent {data}.")
 
         reply = b""
         try:
             reply = await self.readall(self.rserial, timeout or self.timeout)
-        except BaseException:
+            log.info(f"Serial {self.com_path}: received {reply}.")
+        except BaseException as err:
+            log.error(f"Unknown error in send_to_serial(): {err}")
             pass
         finally:
+            log.info(f"Serial {self.com_path} closed.")
             self.wserial.close()
 
         return reply
@@ -141,21 +160,29 @@ class TCPServer:
             try:
                 data = await reader.read(1024)
                 if data == b"" or reader.at_eof():
+                    log.info("At EOF. Closing.")
                     writer.close()
                     return
+
+                log.info(f"Received {data}.")
 
                 async with self._lock:
                     try:
                         reply = await self.send_to_serial(data)
                         if reply != b"":
+                            log.info(f"Sending {reply} to client.")
                             writer.write(reply)
                             await writer.drain()
-                    except BaseException:
+                    except BaseException as err:
+                        log.error(f"Error while sending to serial {err}.")
                         continue
             except BaseException as err:
-                warnings.warn(f"Error found: {err}")
+                log.error(f"Error found: {err}")
                 try:
                     writer.close()
                 except BaseException:
+                    log.error(f"Serial {self.com_path} open.")
                     pass
-                self._lock.release()
+                if self._lock.locked():
+                    log.info("Releasing lock after error.")
+                    self._lock.release()
