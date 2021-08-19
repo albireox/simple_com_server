@@ -180,7 +180,7 @@ class TCPServer:
                 try:
                     writer.close()
                 except BaseException:
-                    log.error(f"Serial {self.com_path} open.")
+                    log.error("Failed closing writer during error.")
                     pass
                 if self._lock.locked():
                     log.info("Releasing lock after error.")
