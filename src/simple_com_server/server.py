@@ -111,7 +111,6 @@ class TCPServer:
                 try:
                     reply += await asyncio.wait_for(reader.readexactly(1), timeout)
                 except asyncio.TimeoutError:
-                    log.error("TiemoutError while reading serial.")
                     return reply
                 except asyncio.IncompleteReadError:
                     log.error("IncompleteReadError while reading serial.")
