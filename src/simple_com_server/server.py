@@ -165,6 +165,7 @@ class TCPServer:
     ):
         """Handles a connected client."""
 
+        log.info(f"{self.port}: New connection.")
         while True:
 
             try:
@@ -174,7 +175,7 @@ class TCPServer:
                     writer.close()
                     return
 
-                log.info(f"Received {data}.")
+                log.info(f"{self.port}: Received {data}.")
 
                 async with self._lock:
                     try:
