@@ -99,10 +99,13 @@ class TCPServer:
             try:
                 return await reader.readuntil(html.escape(self.delimiter).encode())
             except asyncio.IncompleteReadError:
-                log.error("IncompleteReadError while reading serial with delimiter.")
+                log.error(
+                    f"{self.port}: IncompleteReadError while "
+                    "reading serial with delimiter."
+                )
                 return b""
             except BaseException as err:
-                log.error(f"Unknown error while reading serial: {err}")
+                log.error(f"{self.port}: Unknown error while reading serial: {err}")
                 return b""
 
         else:
@@ -113,37 +116,45 @@ class TCPServer:
                 except asyncio.TimeoutError:
                     return reply
                 except asyncio.IncompleteReadError:
-                    log.error("IncompleteReadError while reading serial.")
+                    log.error(f"{self.port}: IncompleteReadError while reading serial.")
                     return b""
                 except BaseException as err:
-                    log.error(f"Unknown error while reading serial: {err}")
+                    log.error(f"{self.port}: Unknown error while reading serial: {err}")
                     return b""
 
     async def send_to_serial(self, data: bytes, timeout=None) -> bytes:
         """Sends data to the serial device and waits for a reply."""
 
         options = self._extra_options.copy()
+        try:
+            self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
+                url=self.com_path,
+                **options,
+            )
+        except BaseException as err:
+            log.error(f"{self.port}: Error while opening serial {self.com_path}: {err}")
+            if self.wserial:
+                self.wserial.close()
+                await self.wserial.wait_closed()
+                log.warning(f"{self.port}: Emergency close of {self.com_path}.")
+            return b""
 
-        self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
-            url=self.com_path,
-            **options,
-        )
-        log.info(f"Serial {self.com_path} open.")
+        log.info(f"{self.port}: Serial {self.com_path} open.")
 
         self.wserial.write(data)
         await self.wserial.drain()
-        log.info(f"Serial {self.com_path}: sent {data}.")
+        log.info(f"{self.port}: Serial {self.com_path}: sent {data}.")
 
         reply = b""
         try:
             reply = await self.readall(self.rserial, timeout or self.timeout)
-            log.info(f"Serial {self.com_path}: received {reply}.")
+            log.info(f"{self.port}: Serial {self.com_path}: received {reply}.")
         except BaseException as err:
-            log.error(f"Unknown error in send_to_serial(): {err}")
-            pass
+            log.error(f"{self.port}: Unknown error in send_to_serial(): {err}")
         finally:
-            log.info(f"Serial {self.com_path} closed.")
             self.wserial.close()
+            await self.wserial.wait_closed()
+            log.info(f"{self.port}: Serial {self.com_path} closed.")
 
         return reply
 
@@ -159,7 +170,7 @@ class TCPServer:
             try:
                 data = await reader.read(1024)
                 if data == b"" or reader.at_eof():
-                    log.info("At EOF. Closing.")
+                    log.info(f"{self.port}:At EOF. Closing.")
                     writer.close()
                     return
 
@@ -169,19 +180,21 @@ class TCPServer:
                     try:
                         reply = await self.send_to_serial(data)
                         if reply != b"":
-                            log.info(f"Sending {reply} to client.")
+                            log.info(f"{self.port}: Sending {reply} to client.")
                             writer.write(reply)
                             await writer.drain()
                     except BaseException as err:
-                        log.error(f"Error while sending to serial {err}.")
+                        log.error(f"{self.port}: Error while sending to serial {err}.")
                         continue
             except BaseException as err:
-                log.error(f"Error found: {err}")
+                log.error(f"{self.port}: Error found: {err}")
                 try:
                     writer.close()
+                    await writer.wait_closed()
                 except BaseException:
-                    log.error("Failed closing writer during error.")
+                    log.error(f"{self.port}: Failed closing writer during error.")
                     pass
                 if self._lock.locked():
-                    log.info("Releasing lock after error.")
+                    log.info(f"{self.port}: Releasing lock after error.")
                     self._lock.release()
+                return
