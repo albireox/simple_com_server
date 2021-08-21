@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import html
 import pathlib
-import warnings
 
 from typing import TypeVar
 
@@ -126,34 +125,35 @@ class TCPServer:
         """Sends data to the serial device and waits for a reply."""
 
         options = self._extra_options.copy()
+        wserial = None
         try:
-            self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
+            rserial, wserial = await serial_asyncio.open_serial_connection(
                 url=self.com_path,
                 **options,
             )
         except BaseException as err:
             log.error(f"{self.port}: Error while opening serial {self.com_path}: {err}")
-            if self.wserial:
-                self.wserial.close()
-                await self.wserial.wait_closed()
+            if wserial:
+                self.close()
+                await wserial.wait_closed()
                 log.warning(f"{self.port}: Emergency close of {self.com_path}.")
             return b""
 
         log.info(f"{self.port}: Serial {self.com_path} open.")
 
-        self.wserial.write(data)
-        await self.wserial.drain()
+        wserial.write(data)
+        await wserial.drain()
         log.info(f"{self.port}: Serial {self.com_path}: sent {data}.")
 
         reply = b""
         try:
-            reply = await self.readall(self.rserial, timeout or self.timeout)
+            reply = await self.readall(rserial, timeout or self.timeout)
             log.info(f"{self.port}: Serial {self.com_path}: received {reply}.")
         except BaseException as err:
             log.error(f"{self.port}: Unknown error in send_to_serial(): {err}")
         finally:
-            self.wserial.close()
-            await self.wserial.wait_closed()
+            wserial.close()
+            await wserial.wait_closed()
             log.info(f"{self.port}: Serial {self.com_path} closed.")
 
         return reply
@@ -173,6 +173,7 @@ class TCPServer:
                 if data == b"" or reader.at_eof():
                     log.info(f"{self.port}:At EOF. Closing.")
                     writer.close()
+                    await writer.wait_closed()
                     return
 
                 log.info(f"{self.port}: Received {data}.")
