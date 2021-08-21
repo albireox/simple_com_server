@@ -171,9 +171,10 @@ class TCPServer:
             try:
                 data = await reader.read(1024)
                 if data == b"" or reader.at_eof():
-                    log.info(f"{self.port}:At EOF. Closing.")
+                    log.info(f"{self.port}: At EOF. Closing.")
                     writer.close()
                     await writer.wait_closed()
+                    log.info(f"{self.port}: At EOF. Did close.")
                     return
 
                 log.info(f"{self.port}: Received {data}.")
