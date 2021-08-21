@@ -149,12 +149,15 @@ class TCPServer:
         try:
             reply = await self.readall(rserial, timeout or self.timeout)
             log.info(f"{self.port}: Serial {self.com_path}: received {reply}.")
+        except asyncio.TimeoutError:
+            log.error(f"{self.port}: timed out in readall()")
         except BaseException as err:
             log.error(f"{self.port}: Unknown error in send_to_serial(): {err}")
-        finally:
-            wserial.close()
-            await wserial.wait_closed()
-            log.info(f"{self.port}: Serial {self.com_path} closed.")
+            return reply
+
+        wserial.close()
+        await wserial.wait_closed()
+        log.info(f"{self.port}: Serial {self.com_path} closed.")
 
         return reply
 
