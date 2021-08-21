@@ -188,8 +188,9 @@ class TCPServer:
                             await writer.drain()
                     except BaseException as err:
                         log.error(f"{self.port}: Error while sending to serial {err}.")
-                        writer.write(b"ERR\n")
-                        await writer.drain()
+                        writer.close()
+                        await writer.wait_closed()
+                        return
             except BaseException as err:
                 log.error(f"{self.port}: Error found: {err}")
                 try:
