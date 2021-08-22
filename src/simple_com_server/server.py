@@ -86,11 +86,7 @@ class TCPServer:
             self.port,
         )
 
-        self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
-            url=self.com_path, **self._extra_options.copy()
-        )
-
-        log.info(f"{self.port}: Serial {self.com_path} open.")
+        await self.start_serial()
 
         return self
 
@@ -99,6 +95,22 @@ class TCPServer:
 
         self.server.close()
         await self.server
+
+        self.wserial.close()
+        await self.wserial.wait_closed()
+
+    async def start_serial(self):
+
+        if self.wserial:
+            log.info(f"{self.port}: Closing serial connection before restarting.")
+            self.wserial.close()
+            await self.wserial.wait_closed()
+
+        self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
+            url=self.com_path, **self._extra_options.copy()
+        )
+
+        log.info(f"{self.port}: Serial {self.com_path} open.")
 
     async def readall(self, reader, timeout=0.1) -> bytes:
         """Reads the buffer until it's empty."""
@@ -133,6 +145,9 @@ class TCPServer:
     async def send_to_serial(self, data: bytes, timeout=None) -> bytes:
         """Sends data to the serial device and waits for a reply."""
 
+        if not self.wserial or self.wserial.is_closing():
+            self.start_serial()
+
         self.wserial.write(data)
         await self.wserial.drain()
         log.info(f"{self.port}: Serial {self.com_path}: sent {data}.")
@@ -143,9 +158,12 @@ class TCPServer:
             log.info(f"{self.port}: Serial {self.com_path}: received {reply}.")
         except asyncio.TimeoutError:
             log.error(f"{self.port}: timed out in readall()")
+            self.wserial.close()
+            await self.wserial.wait_closed()
         except BaseException as err:
             log.error(f"{self.port}: Unknown error in send_to_serial(): {err}")
-            return reply
+            self.wserial.close()
+            await self.wserial.wait_closed()
 
         return reply
 
