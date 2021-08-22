@@ -70,6 +70,9 @@ class TCPServer:
         self.timeout = timeout
         self.delimiter = delimiter
 
+        self.rserial: asyncio.StreamReader | None = None
+        self.wserial: asyncio.StreamWriter | None = None
+
         self._lock = asyncio.Lock()
 
         self.server: asyncio.AbstractServer = None
@@ -82,6 +85,12 @@ class TCPServer:
             "0.0.0.0",
             self.port,
         )
+
+        self.rserial, self.wserial = await serial_asyncio.open_serial_connection(
+            url=self.com_path, **self._extra_options.copy()
+        )
+
+        log.info(f"{self.port}: Serial {self.com_path} open.")
 
         return self
 
@@ -124,40 +133,19 @@ class TCPServer:
     async def send_to_serial(self, data: bytes, timeout=None) -> bytes:
         """Sends data to the serial device and waits for a reply."""
 
-        options = self._extra_options.copy()
-        wserial = None
-        try:
-            rserial, wserial = await serial_asyncio.open_serial_connection(
-                url=self.com_path,
-                **options,
-            )
-        except BaseException as err:
-            log.error(f"{self.port}: Error while opening serial {self.com_path}: {err}")
-            if wserial:
-                self.close()
-                await wserial.wait_closed()
-                log.warning(f"{self.port}: Emergency close of {self.com_path}.")
-            return b""
-
-        log.info(f"{self.port}: Serial {self.com_path} open.")
-
-        wserial.write(data)
-        await wserial.drain()
+        self.wserial.write(data)
+        await self.wserial.drain()
         log.info(f"{self.port}: Serial {self.com_path}: sent {data}.")
 
         reply = b""
         try:
-            reply = await self.readall(rserial, timeout or self.timeout)
+            reply = await self.readall(self.rserial, timeout or self.timeout)
             log.info(f"{self.port}: Serial {self.com_path}: received {reply}.")
         except asyncio.TimeoutError:
             log.error(f"{self.port}: timed out in readall()")
         except BaseException as err:
             log.error(f"{self.port}: Unknown error in send_to_serial(): {err}")
             return reply
-
-        wserial.close()
-        await wserial.wait_closed()
-        log.info(f"{self.port}: Serial {self.com_path} closed.")
 
         return reply
 
