@@ -19,7 +19,7 @@ from sdsstools import get_logger
 
 
 log = get_logger("simple-com")
-log.start_file_logger("/home/lvm/simple-com.log")
+log.start_file_logger("/home/lvm/logs/simple-com/simple-com.log")
 
 
 T = TypeVar("T", bound="TCPServer")
